@@ -2,14 +2,16 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
+// TelnetClient represents simple telnet client behaviour.
 type TelnetClient interface {
 	Connect() error
 	Send() error
@@ -17,68 +19,90 @@ type TelnetClient interface {
 	Close() error
 }
 
-type Client struct {
-	conn       net.Conn
-	address    string
-	timeout    time.Duration
-	in         io.ReadCloser
-	out        io.Writer
-	info       io.Writer
-	cancelFunc context.CancelFunc
+type telnetClient struct {
+	address string
+	timeout time.Duration
+	in      io.ReadCloser
+	out     io.Writer
+	conn    net.Conn
 }
 
-func NewTelnetClient(
-	address string,
-	timeout time.Duration,
-	in io.ReadCloser,
-	out io.Writer,
-	cancelFunc context.CancelFunc) TelnetClient {
-	return &Client{
-		address:    address,
-		timeout:    timeout,
-		in:         in,
-		out:        out,
-		info:       os.Stderr,
-		cancelFunc: cancelFunc,
+// NewTelnetClient creates new instance of TelnetClient.
+func NewTelnetClient(address string, timeout time.Duration, in io.ReadCloser, out io.Writer) TelnetClient {
+	return &telnetClient{
+		address: address,
+		timeout: timeout,
+		in:      in,
+		out:     out,
 	}
 }
 
-func (c *Client) Connect() error {
-	conn, err := net.DialTimeout("tcp", c.address, c.timeout)
-	if err == nil {
-		c.conn = conn
-		c.printInfo("connected to " + c.address)
+// Connect open connection to specified host and port.
+func (t *telnetClient) Connect() error {
+	var err error
+
+	t.conn, err = net.DialTimeout("tcp", t.address, t.timeout)
+	if err != nil {
+		return errors.Wrapf(err, "cannot connect to %s", t.address)
 	}
 
-	return err
-}
-
-func (c *Client) Send() error {
-	scanner := bufio.NewScanner(c.in)
-	for scanner.Scan() {
-		_, err := c.conn.Write([]byte(scanner.Text() + "\n"))
-		if err != nil {
-			c.printInfo("connection closed by remote peer")
-
-			return err
-		}
-	}
-	c.printInfo("EOF")
-	c.cancelFunc()
+	fmt.Fprintf(os.Stderr, "... connected to %s\n", t.address)
 
 	return nil
 }
 
-func (c *Client) Receive() error {
-	_, err := io.Copy(c.out, c.conn)
+// Send starts sending data to given "out" param.
+func (t *telnetClient) Send() error {
+	var err error
 
-	return err
+	scanner := bufio.NewScanner(t.in)
+	for {
+		if !scanner.Scan() {
+			fmt.Fprintf(os.Stderr, "... eof\n")
+			break
+		}
+
+		_, err = fmt.Fprintf(t.conn, "%s\n", scanner.Text())
+		if err != nil {
+			break
+		}
+	}
+
+	return errors.Wrapf(err, "get error when sending")
 }
 
-func (c *Client) Close() error {
-	return c.conn.Close()
+// Receive starts receiving data from "in" param.
+func (t *telnetClient) Receive() error {
+	var err error
+
+	scanner := bufio.NewScanner(t.conn)
+	for {
+		if !scanner.Scan() {
+			fmt.Fprintf(os.Stderr, "... connection was closed by peer\n")
+			break
+		}
+
+		_, err = fmt.Fprintf(t.out, "%s\n", scanner.Text())
+		if err != nil {
+			break
+		}
+	}
+
+	return errors.Wrapf(err, "get error when receiving")
 }
 
-func (c *Client) printInfo(msg string) {
-	fmt.Fprintln(c.info, ">> "+msg)
+// Close client.
+func (t *telnetClient) Close() error {
+	if t.conn == nil {
+		return nil
+	}
+
+	err := t.conn.Close()
+	if err != nil {
+		return errors.Wrapf(err, "get error when closing connect")
+	}
+
+	t.conn = nil
+
+	return nil
 }

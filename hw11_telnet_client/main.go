@@ -2,8 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"github.com/spf13/pflag"
+	"flag"
 	"log"
 	"net"
 	"os"
@@ -12,65 +11,54 @@ import (
 	"time"
 )
 
-const (
-	defaultTimeout = 10
-)
-
-var timeout time.Duration
-
-func init() {
-	pflag.DurationVar(&timeout, "timeout", defaultTimeout*time.Second, "connection timeout in seconds")
-
-	pflag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "%s [options] host port\n", os.Args[0])
-		pflag.PrintDefaults()
-	}
-}
-
 func main() {
-	pflag.Parse()
+	var timeout time.Duration
+	defaultDuration, _ := time.ParseDuration("10s")
+	flag.DurationVar(&timeout, "timeout", defaultDuration, "set timeout")
+	flag.Parse()
 
-	if len(pflag.Args()) != 2 {
-		fmt.Fprintln(os.Stderr, "error: expected two arguments")
-		pflag.Usage()
-		os.Exit(1)
+	host := flag.Arg(0)
+	if host == "" {
+		log.Fatal("No host given!")
 	}
 
-	ctx, cancelFn := context.WithCancel(context.Background())
-	client := NewTelnetClient(
-		net.JoinHostPort(pflag.Arg(0), pflag.Arg(1)),
-		timeout,
-		os.Stdin,
-		os.Stdout,
-		cancelFn,
-	)
-	defer client.Close()
+	port := flag.Arg(1)
+	if port == "" {
+		log.Fatal("No port given!")
+	}
+
+	address := net.JoinHostPort(host, port)
+
+	client := NewTelnetClient(address, timeout, os.Stdin, os.Stdout)
 
 	err := client.Connect()
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("Got error from client: %v", err)
 	}
+	defer client.Close()
+
+	sysSignal := make(chan os.Signal, 1)
+	defer close(sysSignal)
+	signal.Notify(sysSignal, syscall.SIGINT)
+
+	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
-		if err := client.Receive(); err != nil {
-			cancelFn()
-		}
+		defer cancel()
+		_ = client.Send()
 	}()
 
 	go func() {
-		if err := client.Send(); err != nil {
-			cancelFn()
-		}
+		defer cancel()
+		_ = client.Receive()
 	}()
 
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT)
-
-	select {
-	case <-sigCh:
-		cancelFn()
-	case <-ctx.Done():
-		close(sigCh)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-sysSignal:
+			client.Close()
+		}
 	}
 }
