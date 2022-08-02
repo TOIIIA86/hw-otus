@@ -1,51 +1,9 @@
 package hw06pipelineexecution
 
-import "sync"
-
-type keyValues struct {
-	mu  sync.Mutex
-	kvs []keyValue
-}
-
-type keyValue struct {
-	key   interface{}
-	value interface{}
-}
-
-func newKeyValues() *keyValues {
-	return &keyValues{
-		kvs: make([]keyValue, 0),
-	}
-}
-
-func (kvs *keyValues) add(kv keyValue) {
-	kvs.mu.Lock()
-	defer kvs.mu.Unlock()
-	kvs.kvs = append(kvs.kvs, kv)
-}
-
-func (kvs *keyValues) len() int {
-	kvs.mu.Lock()
-	defer kvs.mu.Unlock()
-	return len(kvs.kvs)
-}
-
-func (kvs *keyValues) set(key, value interface{}) {
-	kvs.mu.Lock()
-	defer kvs.mu.Unlock()
-	for i, kv := range kvs.kvs {
-		if kv.key == key {
-			kvs.kvs[i].value = value
-			break
-		}
-	}
-}
-
-func (kvs *keyValues) get() []keyValue {
-	kvs.mu.Lock()
-	defer kvs.mu.Unlock()
-	return kvs.kvs
-}
+import (
+	"sort"
+	"sync"
+)
 
 type (
 	In  = <-chan interface{}
@@ -53,58 +11,112 @@ type (
 	Bi  = chan interface{}
 )
 
+type resWithIndex struct {
+	index int
+	value interface{}
+}
+
 type Stage func(in In) (out Out)
 
-func (s Stage) exec(input interface{}) Out {
-	in := make(Bi, 1)
-	in <- input
-	return s(in)
-}
+func ExecutePipeline(in In, done In, stages ...Stage) Out {
+	out := make(Bi)
 
-func executor(job interface{}, done In, stages ...Stage) interface{} {
-	for _, s := range stages {
+	var mu sync.Mutex
+	var unsortedResults []resWithIndex
+	var wg sync.WaitGroup
+
+	sortIndex := 0
+loop:
+	for {
 		select {
 		case <-done:
-			return nil
-		case job = <-s.exec(job):
+			break loop
+		case v, ok := <-in:
+			if !ok {
+				break loop
+			}
+			wg.Add(1)
+
+			// создаем отдельную горутину для каждого значения из in, и записываем результат в слайс
+			go func(sortIndex int, value interface{}) {
+				defer wg.Done()
+				vChannel := channelWrap(done, value)
+				for _, stage := range stages {
+					if stage != nil {
+						select {
+						case <-done:
+							return
+						default:
+							vChannel = stage(wrapWithDone(done, vChannel))
+						}
+					}
+				}
+				resValue, ok := <-vChannel
+				if !ok {
+					return
+				}
+				mu.Lock()
+				unsortedResults = append(unsortedResults, resWithIndex{sortIndex, resValue})
+				mu.Unlock()
+			}(sortIndex, v)
+			sortIndex++
 		}
 	}
-	return job
+
+	// дожидаемся обработки канала, сортируем и отдаем.
+	go func() {
+		wg.Wait()
+		sort.Slice(unsortedResults, func(i, j int) bool {
+			return unsortedResults[i].index < unsortedResults[j].index
+		})
+
+		for _, sortedRes := range unsortedResults {
+			out <- sortedRes.value
+		}
+		close(out)
+	}()
+
+	return out
 }
 
-func ExecutePipeline(in, done In, stages ...Stage) Out {
-	var out Bi
-	wg := sync.WaitGroup{}
-
-	// used keyvalues struct instead map to avoid ordering
-	kvs := newKeyValues()
-
-	for v := range in {
-		// keep order of job
-		kvs.add(keyValue{key: v})
-		wg.Add(1)
-		go func(v interface{}, done In) {
-			defer wg.Done()
-			result := executor(v, done, stages...)
-			// saved the result by key(job)
-			kvs.set(v, result)
-		}(v, done)
-	}
-
-	wg.Wait()
-
-	// if have result, sending ...
-	// if kvs.len() > 0 {
-	out = make(Bi, kvs.len())
-
-	for _, kv := range kvs.get() {
-		// send only non-null result
-		if kv.value != nil {
-			out <- kv.value
+func channelWrap(done In, value interface{}) Out {
+	stream := make(Bi)
+	go func() {
+		defer close(stream)
+		select {
+		case <-done:
+			return
+		case stream <- value:
 		}
-	}
-	//}
-	// closed the channel after sending, to avoid waitings
-	close(out)
+	}()
+	return stream
+}
+
+func wrapWithDone(done In, in In) Out {
+	out := make(Bi)
+	go func() {
+		defer func() {
+			close(out)
+			for range in {
+			}
+		}()
+		select {
+		case <-done:
+			return
+		default:
+		}
+
+		for {
+			select {
+			case <-done:
+				return
+			case v, ok := <-in:
+				if !ok {
+					return
+				}
+				out <- v
+			}
+		}
+	}()
 	return out
 }
