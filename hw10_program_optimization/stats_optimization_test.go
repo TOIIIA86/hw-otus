@@ -18,6 +18,7 @@ const (
 // go test -v -count=1 -timeout=30s -tags bench .
 func TestGetDomainStat_Time_And_Memory(t *testing.T) {
 	bench := func(b *testing.B) {
+		b.Helper()
 		b.StopTimer()
 
 		r, err := zip.OpenReader("testdata/users.dat.zip")
@@ -39,8 +40,8 @@ func TestGetDomainStat_Time_And_Memory(t *testing.T) {
 
 	result := testing.Benchmark(bench)
 	mem := result.MemBytes
-	t.Logf("time used: %s", result.T)
-	t.Logf("memory used: %dMb", mem/mb)
+	t.Logf("time used: %s / %s", result.T, timeLimit)
+	t.Logf("memory used: %dMb / %dMb", mem/mb, memoryLimit/mb)
 
 	require.Less(t, int64(result.T), int64(timeLimit), "the program is too slow")
 	require.Less(t, mem, memoryLimit, "the program is too greedy")

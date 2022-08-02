@@ -2,56 +2,45 @@ package hw10programoptimization
 
 import (
 	"bufio"
-	"errors"
-	"fmt"
+	"github.com/mailru/easyjson"
 	"io"
 	"strings"
-
-	jsoniter "github.com/json-iterator/go"
 )
 
 type User struct {
-	Email string
+	ID       int
+	Name     string
+	Username string
+	Email    string
+	Phone    string
+	Password string
+	Address  string
 }
 
 type DomainStat map[string]int
 
 func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
-	domains, err := countDomains(r, domain)
-	if err != nil {
-		return nil, fmt.Errorf("get users error: %w", err)
-	}
-	return domains, nil
-}
+	var (
+		domainSuffix = "." + domain
+		stat         = make(DomainStat)
 
-func countDomains(r io.Reader, domain string) (DomainStat, error) {
-	var user User
-	var line []byte
-	var err error
+		fullDomain string
+		user       User
+	)
 
-	json := jsoniter.ConfigFastest
-	result := make(DomainStat)
-
-	br := bufio.NewReader(r)
-	for {
-		line, _, err = br.ReadLine()
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		if err := easyjson.Unmarshal(scanner.Bytes(), &user); err != nil {
 			return nil, err
 		}
 
-		err = json.Unmarshal(line, &user)
-		if err != nil {
-			return nil, err
+		if !strings.HasSuffix(user.Email, domainSuffix) {
+			continue
 		}
 
-		if strings.HasSuffix(user.Email, domain) &&
-			strings.Contains(user.Email, "@") {
-			result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])]++
-		}
+		fullDomain = strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])
+		stat[fullDomain]++
 	}
 
-	return result, nil
+	return stat, nil
 }
