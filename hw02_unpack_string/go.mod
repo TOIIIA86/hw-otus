@@ -1,6 +1,6 @@
 module github.com/TOIIIA86/hw-otus/hw02_unpack_string
 
-go 1.16
+go 1.18
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
