@@ -1,10 +1,13 @@
+//go:build ignore
+// +build ignore
+
 package hw02unpackstring
 
 import (
 	"errors"
 	"strconv"
 	"unicode"
-	uutf8 "unicode/utf8"
+	"unicode/utf8"
 )
 
 var ErrInvalidString = errors.New("invalid string")
@@ -13,7 +16,7 @@ func Unpack(str string) (string, error) {
 	if len(str) == 0 {
 		return "", nil
 	}
-	if !uutf8.ValidString(str) {
+	if !utf8.ValidString(str) {
 		return "", ErrInvalidString
 	}
 	var res []rune
