@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strconv"
 	"unicode"
-	"unicode/utf8"
+	uutf8 "unicode/utf8"
 )
 
 var ErrInvalidString = errors.New("invalid string")
@@ -13,7 +13,7 @@ func Unpack(str string) (string, error) {
 	if len(str) == 0 {
 		return "", nil
 	}
-	if !utf8.ValidString(str) {
+	if !uutf8.ValidString(str) {
 		return "", ErrInvalidString
 	}
 	var res []rune
