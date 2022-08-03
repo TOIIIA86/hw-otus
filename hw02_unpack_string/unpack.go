@@ -3,74 +3,61 @@ package hw02unpackstring
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"unicode"
-	"unicode/utf8"
 )
-
-const BackslashSymbol rune = 92
 
 var ErrInvalidString = errors.New("invalid string")
 
-func Unpack(str string) (string, error) {
-	if len(str) == 0 {
+func Unpack(s string) (string, error) {
+	if s == "" {
 		return "", nil
 	}
-	if !utf8.ValidString(str) {
+
+	sRunes := []rune(s)
+	if unicode.IsDigit(sRunes[0]) {
 		return "", ErrInvalidString
 	}
-	var res []rune
-	prevDigit := false
-	backslash := false
-	for i, r := range str {
-		switch {
-		case unicode.IsLetter(r) || unicode.IsSpace(r):
-			if backslash {
-				return "", ErrInvalidString
-			}
-			prevDigit = false
-			res = append(res, r)
 
-		case unicode.IsDigit(r):
-			if i == 0 || prevDigit {
+	var b strings.Builder
+	for i, rCount := 0, len(sRunes); i < rCount; i++ {
+		r := sRunes[i]
+
+		if r == '\\' {
+			if i == rCount-1 {
 				return "", ErrInvalidString
 			}
-			if backslash {
-				backslash = false
-				res = append(res, r)
+
+			if i < rCount-2 && unicode.IsDigit(sRunes[i+2]) {
+				tmp, _ := strconv.Atoi(string(sRunes[i+2]))
+				b.WriteString(strings.Repeat(string(sRunes[i+1]), tmp))
+				i += 2
+
 				continue
 			}
-			prevDigit = true
-			q, err := strconv.Atoi(string(r))
-			if err != nil {
+			b.WriteRune(sRunes[i+1])
+			i++
+
+			continue
+		}
+
+		if unicode.IsDigit(r) {
+			if i < rCount-1 && unicode.IsDigit(sRunes[i+1]) {
 				return "", ErrInvalidString
 			}
-			res = cloneRune(res, q)
 
-		case r == BackslashSymbol:
-			prevDigit = false
-			if backslash {
-				backslash = false
-				res = append(res, r)
-			} else {
-				backslash = true
-			}
-
-		default:
-			return "", ErrInvalidString
+			continue
 		}
-	}
-	return string(res), nil
-}
 
-func cloneRune(r []rune, q int) []rune {
-	if q == 0 {
-		r = r[:len(r)-1]
-	} else {
-		q--
-		lastChar := r[len(r)-1]
-		for j := 0; j < q; j++ {
-			r = append(r, lastChar)
+		if i < rCount-1 && unicode.IsDigit(sRunes[i+1]) {
+			tmp, _ := strconv.Atoi(string(sRunes[i+1]))
+			b.WriteString(strings.Repeat(string(r), tmp))
+
+			continue
 		}
+
+		b.WriteRune(r)
 	}
-	return r
+
+	return b.String(), nil
 }
