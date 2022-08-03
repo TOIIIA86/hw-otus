@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/cheggaaa/pb/v3"
+	pdv3 "github.com/cheggaaa/pb/v3"
 	"io"
 	"os"
 )
@@ -47,7 +47,7 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 		l = srcStat.Size()
 	}
 
-	bar := pb.Full.Start64(l)
+	bar := pdv3.Full.Start64(l)
 	defer bar.Finish()
 	barReader := bar.NewProxyReader(src)
 
