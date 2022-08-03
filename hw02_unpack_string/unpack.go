@@ -7,6 +7,8 @@ import (
 	"unicode/utf8"
 )
 
+const BackslashSymbol rune = 92
+
 var ErrInvalidString = errors.New("invalid string")
 
 func Unpack(str string) (string, error) {
@@ -44,7 +46,7 @@ func Unpack(str string) (string, error) {
 			}
 			res = cloneRune(res, q)
 
-		case r == 92:
+		case r == BackslashSymbol:
 			prevDigit = false
 			if backslash {
 				backslash = false
