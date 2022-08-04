@@ -34,7 +34,6 @@ func ReadDir(dir string) (Environment, error) {
 			continue
 		}
 
-		// TODO: как получить dir из os.DirEnv?
 		err = registerVar(env, dir, entry)
 		if err != nil {
 			return nil, err
@@ -50,7 +49,6 @@ func registerVar(env Environment, dir string, entry os.DirEntry) error {
 		return ErrInvalidName
 	}
 
-	// case: remove
 	info, err := entry.Info()
 	if err != nil {
 		return err
