@@ -29,7 +29,10 @@ func Unpack(s string) (string, error) {
 			}
 
 			if i < rCount-2 && unicode.IsDigit(sRunes[i+2]) {
-				tmp, _ := strconv.Atoi(string(sRunes[i+2]))
+				tmp, err := strconv.Atoi(string(sRunes[i+2]))
+				if err != nil {
+					return "", ErrInvalidString
+				}
 				b.WriteString(strings.Repeat(string(sRunes[i+1]), tmp))
 				i += 2
 
