@@ -17,6 +17,11 @@ func Unpack(s string) (string, error) {
 	if unicode.IsDigit(sRunes[0]) {
 		return "", ErrInvalidString
 	}
+
+	return decod(sRunes)
+}
+
+func decod(sRunes []rune) (string, error) {
 	var b strings.Builder
 	for i, rCount := 0, len(sRunes); i < rCount; i++ {
 		r := sRunes[i]
@@ -52,5 +57,6 @@ func Unpack(s string) (string, error) {
 		}
 		b.WriteRune(r)
 	}
+
 	return b.String(), nil
 }
