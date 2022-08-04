@@ -23,11 +23,7 @@ func Top10(in string) []string {
 
 	words := regexpTextSplit.Split(in, -1)
 	for _, word := range words {
-		if _, ok := dict[word]; !ok {
-			dict[word] = 1
-		} else {
-			dict[word]++
-		}
+		dict[word]++
 	}
 
 	if len(dict) == 1 {
@@ -59,10 +55,8 @@ func Top10(in string) []string {
 		}
 	})
 
-	var resultLen int
-	if len(dictSlice) > maxResultLen {
-		resultLen = maxResultLen
-	} else {
+	resultLen := maxResultLen
+	if len(dictSlice) < maxResultLen {
 		resultLen = len(dictSlice)
 	}
 	result := make([]string, 0, resultLen)
