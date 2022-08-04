@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/pressly/goose/v3"
 	"log"
 	"os"
 
@@ -12,6 +11,7 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/pressly/goose/v3" //nolint:typecheck
 )
 
 var (
@@ -45,7 +45,7 @@ func main() {
 	command := args[0]
 	dsn := config.PostgreSQL.BuildDSN()
 
-	db, err := goose.OpenDBWithDriver("pgx", dsn)
+	db, err := goose.OpenDBWithDriver("pgx", dsn) //nolint:typecheck
 	if err != nil {
 		log.Fatalf("goose: failed to open DB: %v\n", err)
 	}
@@ -67,7 +67,7 @@ func main() {
 		arguments = append(arguments, args[3:]...)
 	}
 
-	if err := goose.Run(command, db, *dir, arguments...); err != nil {
+	if err := goose.Run(command, db, *dir, arguments...); err != nil { //nolint:typecheck
 		log.Fatalf("goose %v: %v", command, err) //nolint:gocritic
 	}
 }

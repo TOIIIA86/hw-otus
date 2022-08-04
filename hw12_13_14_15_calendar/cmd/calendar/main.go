@@ -11,7 +11,7 @@ import (
 	"github.com/TOIIIA86/hw-otus/hw12_13_14_15_calendar/internal/app"
 	"github.com/TOIIIA86/hw-otus/hw12_13_14_15_calendar/internal/logger"
 	internalhttp "github.com/TOIIIA86/hw-otus/hw12_13_14_15_calendar/internal/server/http"
-	sqlstorage "github.com/TOIIIA86/hw-otus/hw12_13_14_15_calendar/internal/storage/sql"
+	sqlstorage "github.com/TOIIIA86/hw-otus/hw12_13_14_15_calendar/internal/storage/sql" //nolint:typecheck
 
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
