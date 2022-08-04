@@ -2,30 +2,74 @@ package internalhttp
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"time"
 )
 
-type Server struct { // TODO
+type Logger interface {
+	Debug(msg string)
+	Info(msg string)
+	Warn(msg string)
+	Error(msg string)
+	Fatal(msg string)
 }
 
-type Logger interface { // TODO
+type Router interface {
+	ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 
-type Application interface { // TODO
+type Server struct {
+	Host         string
+	Port         string
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+	IdleTimeout  time.Duration
+	Server       *http.Server
+	Logger       Logger
+	Router       Router
 }
 
-func NewServer(logger Logger, app Application) *Server {
-	return &Server{}
+func NewServer(host, port string, readTimeout, writeTimeout, idleTimeout time.Duration, logger Logger, router Router) *Server {
+	return &Server{
+		Host:         host,
+		Port:         port,
+		ReadTimeout:  readTimeout,
+		WriteTimeout: writeTimeout,
+		IdleTimeout:  idleTimeout,
+		Logger:       logger,
+		Router:       router,
+	}
 }
 
 func (s *Server) Start(ctx context.Context) error {
-	// TODO
-	<-ctx.Done()
-	return nil
+	var ch = make(chan error)
+
+	s.Logger.Info("Starting server on " + s.getAddr())
+
+	go func() {
+		s.Server = &http.Server{
+			Addr:         s.getAddr(),
+			Handler:      s.Router,
+			ReadTimeout:  s.ReadTimeout,
+			WriteTimeout: s.WriteTimeout,
+			IdleTimeout:  s.IdleTimeout,
+		}
+		ch <- s.Server.ListenAndServe()
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil
+	case err := <-ch:
+		return err
+	}
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	// TODO
-	return nil
+	return s.Server.Shutdown(ctx)
 }
 
-// TODO
+func (s *Server) getAddr() string {
+	return fmt.Sprintf("%s:%s", s.Host, s.Port)
+}
