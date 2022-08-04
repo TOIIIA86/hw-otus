@@ -3,11 +3,11 @@ package migrations
 import (
 	"database/sql"
 
-	"github.com/pressly/goose/v3" //nolint:typecheck
+	"github.com/pressly/goose/v3"
 )
 
 func init() {
-	goose.AddMigration(upCreateEventsTable, downCreateEventsTable) //nolint:typecheck
+	goose.AddMigration(upCreateEventsTable, downCreateEventsTable)
 }
 
 func upCreateEventsTable(tx *sql.Tx) error {
