@@ -43,6 +43,14 @@ var text = `Как видите, он  спускается  по  лестни�
 	посидеть у огня и послушать какую-нибудь интересную сказку.
 		В этот вечер...`
 
+var testEng = `walk from the cathedral. Fully equipped kitchen, 
+living room with a large sofa and chairs, big TV and balcony. 
+The balcony has space for four people to sit and gets the sun in the mornings, 
+and the flat is light and warm. It has Wi-Fi and fast internet. 
+The upstairs bedroom sleeps four people, with two double beds; 
+the downstairs bedroom sleeps two in single beds. The flat is perfect 
+for families and is near shops, bars and restaurants.`
+
 func TestTop10(t *testing.T) {
 	t.Run("no words in empty string", func(t *testing.T) {
 		require.Len(t, Top10(""), 0)
@@ -78,5 +86,41 @@ func TestTop10(t *testing.T) {
 			}
 			require.Equal(t, expected, Top10(text))
 		}
+	})
+}
+
+func TestTop10_eng(t *testing.T) {
+	t.Run("positive test", func(t *testing.T) {
+		expected := []string{
+			"and",
+			"the",
+			"The",
+			"is",
+			"bedroom",
+			"flat",
+			"for",
+			"four",
+			"has",
+			"in",
+		}
+		require.Equal(t, expected, Top10(testEng))
+	})
+}
+
+func TestSymbol(t *testing.T) {
+	t.Run("positive test", func(t *testing.T) {
+		expected := []string{
+			"!",
+			"#",
+			"$",
+			"%",
+			"&",
+			"(",
+			")",
+			"*",
+			"+",
+			"@",
+		}
+		require.Equal(t, expected, Top10("+ _ ) ( * & ^ % $ # @ !"))
 	})
 }
