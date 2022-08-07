@@ -20,8 +20,8 @@ func RunCmd(cmd []string, env Environment) (returnCode int) {
 	exCmd := exec.Command(name, args...)
 
 	code := fillEnv(env)
-	if code != 0 {
-		return code
+	if code != exitCodeOk {
+		return
 	}
 
 	exCmd.Stdin = os.Stdin
