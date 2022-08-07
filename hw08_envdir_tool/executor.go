@@ -19,8 +19,7 @@ func RunCmd(cmd []string, env Environment) int {
 
 	exCmd := exec.Command(name, args...)
 
-	code := fillEnv(env)
-	if code != 0 {
+	if code := fillEnv(env); code != 0 {
 		return code
 	}
 
