@@ -14,14 +14,14 @@ const (
 )
 
 // RunCmd runs a command + arguments (cmd) with environment variables from env.
-func RunCmd(cmd []string, env Environment) (returnCode int) {
+func RunCmd(cmd []string, env Environment) int {
 	name, args := cmd[0], cmd[1:]
 
 	exCmd := exec.Command(name, args...)
 
 	code := fillEnv(env)
-	if code != exitCodeOk {
-		return
+	if code != 0 {
+		return code
 	}
 
 	exCmd.Stdin = os.Stdin
@@ -29,14 +29,11 @@ func RunCmd(cmd []string, env Environment) (returnCode int) {
 	exCmd.Stderr = os.Stderr
 	if err := exCmd.Run(); err != nil {
 		var exitError *exec.ExitError
-
 		if errors.As(err, &exitError) {
 			return exitError.ExitCode()
 		}
-
 		return exitCodeErr
 	}
-
 	return exitCodeOk
 }
 
@@ -47,7 +44,6 @@ func fillEnv(env Environment) int {
 			if err != nil {
 				return exitCodeCannotUnsetEnv
 			}
-
 			continue
 		}
 
@@ -56,6 +52,5 @@ func fillEnv(env Environment) int {
 			return exitCodeCannotSetEnv
 		}
 	}
-
 	return exitCodeOk
 }
