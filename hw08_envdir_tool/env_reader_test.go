@@ -1,96 +1,96 @@
 package main
 
 import (
+	"log"
 	"os"
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 const (
-	chmod0    = 0b0
-	chmod0664 = 0b000_110_110_100
+	testDir            = "testdata/test_dir"
+	testDirWithBadFile = "testdata/test_dir_bad"
+	badDirPath         = "testdata/123123/"
+	badFileName        = "123=123"
+
+	successCaseDirPath = "testdata/env"
 )
 
-func setup(t *testing.T) {
-	t.Helper()
-	if err := os.Chmod("testdata/envnopermission/NO_PERM", chmod0); err != nil {
-		t.Error(err)
-	}
-}
-
-func teardown(t *testing.T) {
-	t.Helper()
-	if err := os.Chmod("testdata/envnopermission/NO_PERM", chmod0664); err != nil {
-		t.Error(err)
-	}
-}
-
 func TestReadDir(t *testing.T) {
-	setup(t)
-	defer teardown(t)
+	defer cleanUp()
+	setUp()
 
-	type args struct {
-		dir string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    Environment
-		wantErr bool
-	}{
-		{
-			name: "read testdata/env",
-			args: args{"testdata/env"},
-			want: Environment{
-				"BAR":   {"bar", false},
-				"EMPTY": {"", false},
-				"FOO":   {"   foo\nwith new line", false},
-				"HELLO": {"\"hello\"", false},
-				"UNSET": {"", true},
+	t.Run("Empty dir", func(t *testing.T) {
+		res, err := ReadDir(testDir)
+		require.NoError(t, err)
+		require.Len(t, res, 0)
+	})
+
+	t.Run("Non existent dir", func(t *testing.T) {
+		res, err := ReadDir(badDirPath)
+		require.Error(t, err)
+		require.Equal(t, true, os.IsNotExist(err))
+		require.Len(t, res, 0)
+	})
+
+	t.Run("Bad file name err", func(t *testing.T) {
+		_, err := os.Create(testDirWithBadFile + "/" + badFileName)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		res, err := ReadDir(testDirWithBadFile)
+
+		require.Error(t, err)
+		require.EqualError(t, err, ErrInvalidFileName.Error())
+		require.Len(t, res, 0)
+	})
+
+	t.Run("Success case", func(t *testing.T) {
+		expectedRes := Environment{
+			"BAR": EnvVal{
+				Value: "bar",
 			},
-			wantErr: false,
-		},
-		{
-			name:    "read non-existent file",
-			args:    args{"not_existent_file"},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "skip directory in env path",
-			args: args{"testdata/envwithdir"},
-			want: Environment{
-				"BAR":   {"bar", false},
-				"EMPTY": {"", false},
-				"FOO":   {"   foo\nwith new line", false},
-				"HELLO": {"\"hello\"", false},
-				"UNSET": {"", true},
+			"EMPTY": EnvVal{
+				UnsetVal: true,
 			},
-			wantErr: false,
-		},
-		{
-			name:    "read with invalid symbol in filename",
-			args:    args{"testdata/envwithinvalidsymbol"},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name:    "read when no permission to read the file",
-			args:    args{"testdata/envnopermission"},
-			want:    nil,
-			wantErr: true,
-		},
+			"FOO": EnvVal{
+				Value: "   foo\nwith new line",
+			},
+			"HELLO": EnvVal{
+				Value: `"hello"`,
+			},
+			"UNSET": EnvVal{
+				UnsetVal: true,
+			},
+		}
+
+		res, err := ReadDir(successCaseDirPath)
+
+		require.NoError(t, err)
+		require.Equal(t, expectedRes, res)
+	})
+}
+
+func cleanUp() {
+	if err := os.RemoveAll(testDir); err != nil {
+		log.Fatal(err)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ReadDir(tt.args.dir)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ReadDir() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ReadDir() got = %v, want %v", got, tt.want)
-			}
-		})
+
+	if err := os.RemoveAll(testDirWithBadFile); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func setUp() {
+	err := os.Mkdir(testDir, 0o755)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = os.Mkdir(testDirWithBadFile, 0o755)
+	if err != nil {
+		log.Fatal(err)
 	}
 }

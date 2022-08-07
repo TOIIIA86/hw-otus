@@ -1,25 +1,19 @@
 package main
 
 import (
-	"errors"
 	"log"
 	"os"
 )
 
-var ErrInvalidArgs = errors.New("invalid arguments")
-
 func main() {
 	if len(os.Args) < 3 {
-		log.Fatal(ErrInvalidArgs)
+		log.Fatal("Not enough args")
 	}
 
-	path := os.Args[1]
-	command := os.Args[2:]
-
-	environment, err := ReadDir(path)
+	env, err := ReadDir(os.Args[1])
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Env reading err: %v", err)
 	}
 
-	os.Exit(RunCmd(command, environment))
+	os.Exit(RunCmd(os.Args[2:], env))
 }

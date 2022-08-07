@@ -2,80 +2,81 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
-	"io/fs"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
+	"unicode"
 )
 
-var ErrInvalidSymbol = errors.New("env name has invalid symbol")
+type Environment map[string]EnvVal
 
-type Environment map[string]EnvValue
-
-// EnvValue helps to distinguish between empty files and files with the first empty line.
-type EnvValue struct {
-	Value      string
-	NeedRemove bool
+// EnvVal helps to distinguish between empty files and files with the first empty line.
+type EnvVal struct {
+	Value    string
+	UnsetVal bool
 }
+
+var (
+	ErrInvalidFileName  = errors.New("filename contains a '=' symboll")
+	ErrFileIsADirectory = errors.New("file is a directory")
+)
 
 // ReadDir reads a specified directory and returns map of env variables.
 // Variables represented as files where filename is name of variable, file first line is a value.
 func ReadDir(dir string) (Environment, error) {
-	fileInfos, err := ioutil.ReadDir(dir)
+	filesInfo, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
 
-	environment := make(map[string]EnvValue)
-	for _, fileInfo := range fileInfos {
-		if fileInfo.IsDir() {
-			continue
-		}
-
-		env, err := getEnvValue(dir, fileInfo)
-		if err != nil {
+	envVars := make(Environment, len(filesInfo))
+	for _, fInfo := range filesInfo {
+		if err := validateFileInfo(fInfo); err != nil {
 			return nil, err
 		}
 
-		environment[fileInfo.Name()] = env
+		file, err := os.Open(filepath.Join(dir, fInfo.Name()))
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		scanner.Scan()
+		if err := scanner.Err(); err != nil {
+			return nil, err
+		}
+
+		envVars[fInfo.Name()] = filterEnvVal(scanner.Text())
 	}
 
-	return environment, nil
+	return envVars, nil
 }
 
-func getEnvValue(dir string, info fs.FileInfo) (EnvValue, error) {
-	if info.Size() == 0 {
-		return EnvValue{
-			Value:      "",
-			NeedRemove: true,
-		}, nil
+func validateFileInfo(fInfo os.FileInfo) error {
+	if fInfo.IsDir() {
+		return ErrFileIsADirectory
 	}
 
-	if strings.Contains(info.Name(), "=") {
-		return EnvValue{}, ErrInvalidSymbol
+	if strings.Contains(fInfo.Name(), "=") {
+		return ErrInvalidFileName
 	}
 
-	file, err := os.Open(path.Join(dir, info.Name()))
-	if err != nil {
-		return EnvValue{}, err
+	return nil
+}
+
+func filterEnvVal(s string) EnvVal {
+	var envVal EnvVal
+
+	s = strings.TrimRightFunc(s, unicode.IsSpace)
+	s = strings.ReplaceAll(s, string([]byte{'\x00'}), "\n")
+	if len(s) == 0 {
+		envVal.UnsetVal = true
 	}
-	defer file.Close()
 
-	reader := bufio.NewReader(file)
-	line, _, err := reader.ReadLine()
-	if err != nil {
-		return EnvValue{}, err
-	}
+	envVal.Value = s
 
-	line = bytes.ReplaceAll(line, []byte("\x00"), []byte("\n"))
-	line = bytes.TrimRight(line, " ")
-	line = bytes.TrimRight(line, "	")
-
-	return EnvValue{
-		Value:      string(line),
-		NeedRemove: false,
-	}, nil
+	return envVal
 }

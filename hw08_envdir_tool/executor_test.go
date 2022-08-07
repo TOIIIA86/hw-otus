@@ -1,39 +1,60 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
 
 func TestRunCmd(t *testing.T) {
-	type args struct {
-		cmd []string
-		env Environment
-	}
-	tests := []struct {
-		name           string
-		args           args
-		wantReturnCode int
-	}{
-		{
-			name: "with returns 0",
-			args: args{
-				cmd: []string{"ls", "-la"},
-				env: nil,
+	t.Run("Success case simple", func(t *testing.T) {
+		cmd := []string{"pwd", "-L"}
+		exitCode := RunCmd(cmd, Environment{})
+
+		require.Equal(t, exitCodeOk, exitCode)
+	})
+
+	t.Run("Success case with filled dir env", func(t *testing.T) {
+		cmd := []string{"pwd", "-L"}
+		exitCode := RunCmd(cmd, Environment{
+			"TEST_SET": EnvVal{
+				Value: "TEST_SET",
 			},
-			wantReturnCode: 0,
-		},
-		{
-			name: "with returns 1",
-			args: args{
-				cmd: []string{"ls", "-la", "non-existent-file"},
-				env: nil,
-			},
-			wantReturnCode: 1,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if gotReturnCode := RunCmd(tt.args.cmd, tt.args.env); gotReturnCode != tt.wantReturnCode {
-				t.Errorf("RunCmd() = %v, want %v", gotReturnCode, tt.wantReturnCode)
-			}
 		})
-	}
+
+		require.Equal(t, exitCodeOk, exitCode)
+		require.Contains(t, os.Environ(), "TEST_SET=TEST_SET")
+	})
+
+	t.Run("Exec err case", func(t *testing.T) {
+		cmd := []string{"pwd", "-RRR"}
+		exitCode := RunCmd(cmd, Environment{
+			"TEST_QWE": EnvVal{
+				Value: "TEST_QWE",
+			},
+		})
+
+		require.Equal(t, 1, exitCode)
+	})
+}
+
+func TestFillEnv(t *testing.T) {
+	t.Run("Success simple case", func(t *testing.T) {
+		dirEnv := Environment{
+			"UNSET": EnvVal{
+				Value:    "",
+				UnsetVal: true,
+			},
+			"SET_VAL": EnvVal{
+				Value:    "VAL",
+				UnsetVal: false,
+			},
+		}
+
+		resCode := fillEnv(dirEnv)
+
+		require.Equal(t, 0, resCode)
+		require.Contains(t, os.Environ(), "SET_VAL=VAL")
+	})
 }
