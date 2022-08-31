@@ -7,12 +7,7 @@ import (
 	"github.com/TOIIIA86/hw-otus/hw12_13_14_15_calendar/internal/storage"
 )
 
-// var (
-//	errDateIsBooked = errors.New("this date is already booked")
-// )
-
 type App struct {
-	name    string
 	logger  Logger
 	storage Storage
 }
@@ -37,16 +32,11 @@ type Router interface {
 	ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 
-func New(name string, logger Logger, storage Storage) *App {
+func New(logger Logger, storage Storage) *App {
 	return &App{
-		name:    name,
 		logger:  logger,
 		storage: storage,
 	}
-}
-
-func (a *App) GetName() string {
-	return a.name
 }
 
 func (a *App) CreateEvent(ctx context.Context, event storage.Event) (int, error) {

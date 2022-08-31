@@ -41,4 +41,7 @@ migrate: build_goose
 rollback: build_goose
 	./bin/goose --dir=migrations --config=configs/.env down
 
+generate:
+	protoc proto/calendar.proto --go_out=./internal/server/grpc/pb --go-grpc_out=./internal/server/grpc/pb
+
 .PHONY: tools build run build-img run-img version test lint

@@ -1,7 +1,6 @@
 package router
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -18,14 +17,24 @@ type Application interface {
 	GetName() string
 }
 
-func NewChiRouter(logfile *os.File, app Application) Router {
+type Handlers interface {
+	CreateEvent(w http.ResponseWriter, r *http.Request)
+	UpdateEvent(w http.ResponseWriter, r *http.Request)
+	DeleteEvent(w http.ResponseWriter, r *http.Request)
+	ListEvent(w http.ResponseWriter, r *http.Request)
+	GetEvent(w http.ResponseWriter, r *http.Request)
+}
+
+func NewChiRouter(logfile *os.File, handlers Handlers) Router {
 	middleware.DefaultLogger = middleware.RequestLogger(&middleware.DefaultLogFormatter{Logger: log.New(logfile, "", log.LstdFlags), NoColor: true})
 
 	mux := chi.NewRouter() //nolint:typecheck
 	mux.Use(middleware.Logger)
 
-	mux.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(fmt.Sprintf("Hello, %s!", app.GetName())))
-	})
+	mux.Post("/events", handlers.CreateEvent)
+	mux.Put("/events/{eventID}", handlers.UpdateEvent)
+	mux.Delete("/events/{eventID}", handlers.DeleteEvent)
+	mux.Get("/events", handlers.ListEvent)
+	mux.Get("/events/{eventID}", handlers.GetEvent)
 	return mux
 }

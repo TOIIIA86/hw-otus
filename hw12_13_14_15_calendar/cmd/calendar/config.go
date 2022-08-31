@@ -8,6 +8,7 @@ import (
 type Config struct {
 	App        App
 	Server     Server
+	GRPC       GRPC
 	Logger     Logger
 	PostgreSQL PostgreSQL
 }
@@ -24,6 +25,11 @@ type Server struct {
 	ReadTimeout  time.Duration `envconfig:"SERVER_READ_TIMEOUT" default:"30s" required:"true"`
 	WriteTimeout time.Duration `envconfig:"SERVER_WRITE_TIMEOUT" default:"30s" required:"true"`
 	IdleTimeout  time.Duration `envconfig:"SERVER_IDLE_TIMEOUT" default:"30s" required:"true"`
+}
+
+type GRPC struct {
+	Host string `envconfig:"GRPC_HOST" default:"127.0.0.1" required:"true"`
+	Port string `envconfig:"GRPC_PORT" default:"50051" required:"true"`
 }
 
 type Logger struct {

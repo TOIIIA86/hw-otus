@@ -45,7 +45,7 @@ func NewServer(host, port string, readTimeout, writeTimeout, idleTimeout time.Du
 func (s *Server) Start(ctx context.Context) error {
 	var ch = make(chan error)
 
-	s.Logger.Info("Starting server on " + s.getAddr())
+	s.Logger.Info("Starting http server on " + s.getAddr())
 
 	go func() {
 		s.Server = &http.Server{

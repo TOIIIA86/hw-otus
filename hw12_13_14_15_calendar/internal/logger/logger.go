@@ -7,7 +7,7 @@ import (
 )
 
 type Logger struct {
-	zap *zap.Logger
+	Zap *zap.Logger
 }
 
 func New(level string, development bool) (*Logger, error) {
@@ -24,26 +24,26 @@ func New(level string, development bool) (*Logger, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Logger{zap: logger}, nil
+	return &Logger{Zap: logger}, nil
 }
 
 func (l Logger) Debug(msg string) {
-	l.zap.Debug(msg)
+	l.Zap.Debug(msg)
 }
 
 func (l Logger) Info(msg string) {
-	l.zap.Info(msg)
+	l.Zap.Info(msg)
 }
 
 func (l Logger) Warn(msg string) {
-	l.zap.Warn(msg)
+	l.Zap.Warn(msg)
 }
 
 func (l Logger) Error(msg string) {
-	l.zap.Error(msg)
+	l.Zap.Error(msg)
 }
 
 func (l Logger) Fatal(msg string) {
-	l.zap.Fatal(msg)
+	l.Zap.Fatal(msg)
 	os.Exit(1)
 }
